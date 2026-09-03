@@ -28,16 +28,31 @@ def stop_current_sound():
         is_playing = False
 
 
+def _resolve_filename(filename):
+    """Try to find a file, supporting bare names without extensions."""
+    file_path = os.path.join(sound_folder, filename)
+    if os.path.isfile(file_path):
+        return file_path, filename
+
+    for ext in SUPPORTED_EXTENSIONS:
+        candidate = filename + ext
+        candidate_path = os.path.join(sound_folder, candidate)
+        if os.path.isfile(candidate_path):
+            return candidate_path, candidate
+
+    return None, None
+
+
 def _play_sound_on_server(filename):
     global is_playing, current_sound
     if not sound_folder or not os.path.isdir(sound_folder):
         raise RuntimeError(f"Sound folder not set or not found: {sound_folder}")
 
-    file_path = os.path.join(sound_folder, filename)
-    if not os.path.isfile(file_path):
+    file_path, resolved_name = _resolve_filename(filename)
+    if not file_path:
         raise FileNotFoundError(f"File not found: {filename}")
 
-    ext = os.path.splitext(filename)[1].lower()
+    ext = os.path.splitext(resolved_name)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise ValueError(f"Unsupported format: {ext}")
 
@@ -72,9 +87,12 @@ def list_audio():
 @app.route("/api/play/<path:filename>", methods=["GET", "POST"])
 def api_play_sound(filename):
     try:
-        _play_sound_on_server(filename)
-        return jsonify({"status": "playing", "file": filename})
-    except (RuntimeError, FileNotFoundError, ValueError) as e:
+        resolved = _resolve_filename(filename)
+        if not resolved[0]:
+            return jsonify({"error": f"File not found: {filename}"}), 404
+        _play_sound_on_server(resolved[1])
+        return jsonify({"status": "playing", "file": resolved[1]})
+    except (RuntimeError, ValueError) as e:
         return jsonify({"error": str(e)}), 400
     except pygame.error as e:
         return jsonify({"error": f"Failed to play sound: {str(e)}"}), 500

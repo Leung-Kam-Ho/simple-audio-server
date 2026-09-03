@@ -145,11 +145,12 @@
 
                 data.files.forEach(file => {
                     const btn = document.createElement('button');
+                    const nameWithoutExt = file.replace(/\.[^.]+$/, '');
                     btn.className = 'btn';
                     btn.dataset.file = file;
                     btn.innerHTML = `
                         <span class="btn-icon">▶</span>
-                        <span>${file}</span>
+                        <span>${nameWithoutExt}</span>
                     `;
                     btn.addEventListener('click', () => playSound(file, btn));
                     grid.appendChild(btn);
