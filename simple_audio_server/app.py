@@ -47,46 +47,47 @@ def list_audio():
 
 
 @app.route("/api/play/<path:filename>", methods=["GET", "POST"])
-def play_sound(filename):
-    global current_sound, is_playing
-
-    if not sound_folder or not os.path.isdir(sound_folder):
-        return jsonify({"error": f"Sound folder not found: {sound_folder}"}), 404
-
-    file_path = os.path.join(sound_folder, filename)
-    if not os.path.isfile(file_path):
-        return jsonify({"error": f"File not found: {filename}"}), 404
-
-    ext = os.path.splitext(filename)[1].lower()
-    if ext not in SUPPORTED_EXTENSIONS:
-        return jsonify({"error": f"Unsupported format: {ext}"}), 400
-
-    if is_playing:
-        stop_current_sound()
-
+def api_play_sound(filename):
     try:
-        current_sound = pygame.mixer.Sound(file_path)
-        current_sound.play()
-        is_playing = True
+        play_sound(filename)
         return jsonify({"status": "playing", "file": filename})
+    except (RuntimeError, FileNotFoundError, ValueError) as e:
+        return jsonify({"error": str(e)}), 400
     except pygame.error as e:
         return jsonify({"error": f"Failed to play sound: {str(e)}"}), 500
 
 
-@app.route("/api/stop", methods=["GET", "POST"])
-def stop_sound():
-    global is_playing
+def _ensure_initialized():
+    if not pygame.mixer.get_init():
+        init_pygame()
+
+
+def play(filename):
+    _ensure_initialized()
+    play_sound(filename)
+
+
+def stop():
+    _ensure_initialized()
     stop_current_sound()
+
+
+def status():
+    return {
+        "folder": sound_folder,
+        "is_playing": is_playing,
+    }
+
+
+@app.route("/api/stop", methods=["GET", "POST"])
+def api_stop_sound():
+    stop()
     return jsonify({"status": "stopped"})
 
 
 @app.route("/api/status", methods=["GET"])
-def status():
-    return jsonify({
-        "folder": sound_folder,
-        "is_playing": is_playing,
-        "current_file": None,
-    })
+def api_status():
+    return jsonify(status())
 
 
 def parse_args():
