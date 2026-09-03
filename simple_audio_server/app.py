@@ -28,6 +28,28 @@ def stop_current_sound():
         is_playing = False
 
 
+def _play_sound_on_server(filename):
+    global is_playing, current_sound
+    if not sound_folder or not os.path.isdir(sound_folder):
+        raise RuntimeError(f"Sound folder not set or not found: {sound_folder}")
+
+    file_path = os.path.join(sound_folder, filename)
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"File not found: {filename}")
+
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise ValueError(f"Unsupported format: {ext}")
+
+    if is_playing:
+        stop_current_sound()
+
+    _ensure_initialized()
+    current_sound = pygame.mixer.Sound(file_path)
+    current_sound.play()
+    is_playing = True
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -50,7 +72,7 @@ def list_audio():
 @app.route("/api/play/<path:filename>", methods=["GET", "POST"])
 def api_play_sound(filename):
     try:
-        play_sound(filename)
+        _play_sound_on_server(filename)
         return jsonify({"status": "playing", "file": filename})
     except (RuntimeError, FileNotFoundError, ValueError) as e:
         return jsonify({"error": str(e)}), 400
@@ -63,21 +85,21 @@ def _ensure_initialized():
         init_pygame()
 
 
-def play(filename, host="localhost", port=5000):
+def play(filename, host="localhost", port=4410):
     url = f"http://{host}:{port}/api/play/{requests.utils.quote(filename, safe='')}"
     resp = requests.post(url, timeout=5)
     resp.raise_for_status()
     return resp.json()
 
 
-def stop(host="localhost", port=5000):
+def stop(host="localhost", port=4410):
     url = f"http://{host}:{port}/api/stop"
     resp = requests.post(url, timeout=5)
     resp.raise_for_status()
     return resp.json()
 
 
-def status(host="localhost", port=5000):
+def status(host="localhost", port=4410):
     url = f"http://{host}:{port}/api/audio"
     resp = requests.get(url, timeout=5)
     resp.raise_for_status()
@@ -92,7 +114,10 @@ def api_stop_sound():
 
 @app.route("/api/status", methods=["GET"])
 def api_status():
-    return jsonify(status())
+    return jsonify({
+        "folder": sound_folder,
+        "is_playing": is_playing,
+    })
 
 
 def parse_args():
@@ -112,8 +137,8 @@ def parse_args():
         "--port",
         "-p",
         type=int,
-        default=5000,
-        help="Port to bind (default: 5000)",
+        default=4410,
+        help="Port to bind (default: 4410)",
     )
     return parser.parse_args()
 
