@@ -1,3 +1,3 @@
-from simple_audio_server.app import main, play, stop
+from simple_audio_server.app import main, play, stop, status
 
-__all__ = ["main", "play", "stop"]
+__all__ = ["main", "play", "stop", "status"]

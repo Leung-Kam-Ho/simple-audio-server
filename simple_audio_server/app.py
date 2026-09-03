@@ -3,6 +3,7 @@ import argparse
 import threading
 
 import pygame
+import requests
 from flask import Flask, jsonify, request, render_template
 from importlib.metadata import version
 
@@ -62,26 +63,30 @@ def _ensure_initialized():
         init_pygame()
 
 
-def play(filename):
-    _ensure_initialized()
-    play_sound(filename)
+def play(filename, host="localhost", port=5000):
+    url = f"http://{host}:{port}/api/play/{requests.utils.quote(filename, safe='')}"
+    resp = requests.post(url, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
 
 
-def stop():
-    _ensure_initialized()
-    stop_current_sound()
+def stop(host="localhost", port=5000):
+    url = f"http://{host}:{port}/api/stop"
+    resp = requests.post(url, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
 
 
-def status():
-    return {
-        "folder": sound_folder,
-        "is_playing": is_playing,
-    }
+def status(host="localhost", port=5000):
+    url = f"http://{host}:{port}/api/audio"
+    resp = requests.get(url, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
 
 
 @app.route("/api/stop", methods=["GET", "POST"])
 def api_stop_sound():
-    stop()
+    stop_current_sound()
     return jsonify({"status": "stopped"})
 
 

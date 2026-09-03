@@ -24,6 +24,25 @@ simple_audio_server --folder ./sounds
 | `--host` | Host to bind | `0.0.0.0` |
 | `--port`, `-p` | Port to bind | `5000` |
 
+## Python Client
+
+Use `play()`, `stop()`, and `status()` to control a remote server:
+
+```python
+from simple_audio_server import play, stop, status
+
+# Play a sound on remote server
+play("alert.mp3", host="192.168.1.100", port=5000)
+
+# Stop playback
+stop("192.168.1.100", 5000)
+
+# List files
+print(status("192.168.1.100", 5000))
+```
+
+Defaults to `localhost:5000`.
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
