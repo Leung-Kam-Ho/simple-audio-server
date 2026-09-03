@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Player</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .folder-info {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 32px;
+        }
+
+        .status-bar {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin-bottom: 32px;
+            min-width: 320px;
+            text-align: center;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .status-bar.playing {
+            border-color: #4caf50;
+            background: #1a2e1a;
+        }
+
+        .status-bar .icon {
+            margin-right: 8px;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .btn {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 14px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background: #2a2a2a;
+            border-color: #555;
+            transform: translateY(-1px);
+        }
+
+        .btn.playing {
+            background: #1b5e20;
+            border-color: #4caf50;
+            color: #ffffff;
+        }
+
+        .btn.playing .btn-icon {
+            animation: pulse 0.8s ease-in-out infinite;
+        }
+
+        .btn.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .btn-icon {
+            font-size: 1.1rem;
+        }
+
+        .empty {
+            color: #666;
+            font-size: 1rem;
+            margin-top: 40px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Player</h1>
+    <p class="folder-info" id="folderInfo">Loading...</p>
+
+    <div class="status-bar" id="statusBar">
+        <span class="icon">⏸</span>
+        <span id="statusText">Ready</span>
+    </div>
+
+    <div class="btn-grid" id="btnGrid">
+        <p class="empty">Loading audio files...</p>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentPlaying = null;
+
+        async function loadFiles() {
+            try {
+                const res = await fetch(`${API_BASE}/api/audio`);
+                const data = await res.json();
+
+                document.getElementById('folderInfo').textContent = data.folder || '';
+
+                const grid = document.getElementById('btnGrid');
+                grid.innerHTML = '';
+
+                if (!data.files || data.files.length === 0) {
+                    grid.innerHTML = '<p class="empty">No audio files found in folder.</p>';
+                    return;
+                }
+
+                data.files.forEach(file => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn';
+                    btn.dataset.file = file;
+                    btn.innerHTML = `
+                        <span class="btn-icon">▶</span>
+                        <span>${file}</span>
+                    `;
+                    btn.addEventListener('click', () => playSound(file, btn));
+                    grid.appendChild(btn);
+                });
+            } catch (err) {
+                document.getElementById('btnGrid').innerHTML =
+                    `<p class="empty" style="color:#e53;">Failed to load: ${err.message}</p>`;
+            }
+        }
+
+        async function playSound(file, btn) {
+            const statusBar = document.getElementById('statusBar');
+            const statusText = document.getElementById('statusText');
+
+            if (currentPlaying === file) {
+                await fetch(`${API_BASE}/api/stop`, { method: 'POST' });
+                currentPlaying = null;
+                btn.classList.remove('playing');
+                btn.querySelector('.btn-icon').textContent = '▶';
+                statusBar.classList.remove('playing');
+                statusBar.querySelector('.icon').textContent = '⏸';
+                statusText.textContent = 'Stopped';
+                return;
+            }
+
+            btn.classList.add('loading');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/play/${encodeURIComponent(file)}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.error) {
+                    statusText.textContent = data.error;
+                    return;
+                }
+
+                currentPlaying = file;
+                statusBar.classList.add('playing');
+                statusBar.querySelector('.icon').textContent = '♫';
+                statusText.textContent = `Playing: ${file}`;
+
+                document.querySelectorAll('.btn').forEach(b => {
+                    b.classList.remove('playing');
+                    b.querySelector('.btn-icon').textContent = '▶';
+                });
+                btn.classList.add('playing');
+                btn.querySelector('.btn-icon').textContent = '⏸';
+
+                btn.classList.remove('loading');
+
+            } catch (err) {
+                statusText.textContent = `Error: ${err.message}`;
+                btn.classList.remove('loading');
+            }
+        }
+
+        loadFiles();
+    </script>
+</body>
+</html>

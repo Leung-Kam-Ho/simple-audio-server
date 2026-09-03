@@ -1,4 +1,4 @@
-# simple-audio-server
+simple-audio-server
 
 A simple Flask audio server with pygame playback.
 

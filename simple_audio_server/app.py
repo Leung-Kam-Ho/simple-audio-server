@@ -3,7 +3,8 @@ import argparse
 import threading
 
 import pygame
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
+from importlib.metadata import version
 
 SUPPORTED_EXTENSIONS = {".mp3", ".ogg", ".wav", ".flac", ".m4a", ".aac"}
 
@@ -24,6 +25,11 @@ def stop_current_sound():
         current_sound.stop()
         current_sound = None
         is_playing = False
+
+
+@app.route("/")
+def index():
+    return render_template("index.html")
 
 
 @app.route("/api/audio", methods=["GET"])
@@ -116,6 +122,8 @@ def main():
         return
 
     init_pygame()
+    pkg_version = version("simple-audio-server")
+    print(f"simple-audio-server v{pkg_version}")
     print(f"Audio server running on http://{args.host}:{args.port}")
     print(f"Sound folder: {sound_folder}")
     print(f"Endpoints:")
